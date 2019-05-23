@@ -1,8 +1,8 @@
 Prometheus OpenVPN Access Exporter
 ==================================
-This is my first Rust program. Take the SQLite db `log.db` of OpenVPN Access Server and expose some metrics to Prometheus.
+This is my first Rust program. Take the SQLite db `log.db` of OpenVPN Access Server and expose this metrics to Prometheus.
 
-This is a exporter for:
+Metrics:
   * duration
   * bytes_in
   * bytes_out
