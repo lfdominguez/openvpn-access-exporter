@@ -26,3 +26,4 @@ TODO:
 -----
 - [ ] Allow change exposed port
 - [ ] Allow change exposed interface
+- [ ] Allow auto-release on Github
