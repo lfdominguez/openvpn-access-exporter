@@ -1,0 +1,21 @@
+[package]
+name = "openvpn-access-exporter"
+version = "0.1.0"
+authors = ["Luis Felipe Domínguez Vega <ldominguezvega@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+env_logger = "0.6"
+log = "0.4.6"
+prometheus = "0.5"
+prometheus_exporter = "0.3"
+sqlite = "0.24.0"
+clap = "2.33"
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3
+lto = true
+panic = 'abort'
