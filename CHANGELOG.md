@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Feat
+- Add support to set expose host and port for http server.
+
 
 ## [v0.1.5] - 2019-05-24
 
