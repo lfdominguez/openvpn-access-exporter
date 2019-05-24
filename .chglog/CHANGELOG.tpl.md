@@ -1,4 +1,4 @@
-# Change Log {{ .Info.Title }}
+# {{ .Info.Title }}
 
 {{ if .Versions -}}
 ## [Unreleased]
