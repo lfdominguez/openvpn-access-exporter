@@ -38,9 +38,27 @@ fn main() {
             .required(true)
             .takes_value(true)
         )
+        .arg(Arg::with_name("port")
+            .short("p")
+            .long("port")
+            .help("Host port to expose http server")
+            .required(false)
+            .takes_value(true)
+            .default_value("9185")
+        )
+        .arg(Arg::with_name("host")
+            .short("h")
+            .long("host")
+            .help("Address where to expose http server")
+            .required(false)
+            .takes_value(true)
+            .default_value("0.0.0.0")
+        )
         .get_matches();
 
     let ovpn_log = flags.value_of("file").unwrap();
+    let expose_port = flags.value_of("port").unwrap();
+    let expose_host = flags.value_of("host").unwrap();
 
     // Setup logger with default level info so we can see the messages from
     // prometheus_exporter.
@@ -49,7 +67,7 @@ fn main() {
     info!("Using file: {}", ovpn_log);
 
     // Parse address used to bind exporter to.
-    let addr_raw = "0.0.0.0:9185";
+    let addr_raw = expose_host.to_owned() + ":" + expose_port;
     let addr: SocketAddr = addr_raw.parse().expect("can not parse listen addr");
 
     // Start exporter.

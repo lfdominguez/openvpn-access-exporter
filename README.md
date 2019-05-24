@@ -1,29 +1,34 @@
 Prometheus OpenVPN Access Exporter
 ==================================
+[![Build Status](https://travis-ci.com/lfdominguez/openvpn-access-exporter.svg?branch=master)](https://travis-ci.com/lfdominguez/openvpn-access-exporter)
+[![Build status](https://ci.appveyor.com/api/projects/status/m97n73atmvnj5lox?svg=true)](https://ci.appveyor.com/project/lfdominguez/openvpn-access-exporter)
+
 This is my first Rust program. Take the SQLite db `log.db` of OpenVPN Access Server and expose this metrics to Prometheus.
 
 Metrics:
-  * duration
-  * bytes_in
-  * bytes_out
+  * Session duration with `openvpn_user_duration`
+  * Bytes downloaded on session with `openvpn_user_bytes_in`
+  * Bytes uploaded on session with`openvpn_user_bytes_out`
 
 with labels:
-  * session_id
-  * node
-  * username
-  * common_name
-  * real_ip
-  * vpn_ip
+  * `session_id`
+  * `node`
+  * `username`
+  * `common_name`
+  * `real_ip`
+  * `vpn_ip`
 
-Usage:
+CLI reference:
 ```
-openvpn-access-exporter --file <file>
+USAGE:
+    openvpn-access-exporter [OPTIONS] --file <file>
+
+FLAGS:
+        --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -f, --file <file>    SQLite log file (log.db)
+    -h, --host <host>    Address where to expose http server [default: 0.0.0.0]
+    -p, --port <port>    Host port to expose http server [default: 9185]
 ```
-
-and listen on `9185` port.
-
-TODO:
------
-- [ ] Allow change exposed port
-- [ ] Allow change exposed interface
-- [ ] Allow auto-release on Github
