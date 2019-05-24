@@ -72,7 +72,7 @@ branches:
   only:
     # Release tags
     - /^v\d+\.\d+\.\d+.*$/
-    #- master
+    - master
 
 notifications:
   - provider: Email
