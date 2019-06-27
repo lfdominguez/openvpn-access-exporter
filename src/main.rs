@@ -82,7 +82,9 @@ fn main() {
         "username",
         "common_name",
         "real_ip",
-        "vpn_ip"
+        "vpn_ip",
+        "active",
+        "auth"
     ];
 
     // Create metric
@@ -102,7 +104,7 @@ fn main() {
         access_counter.inc();
 
         let mut statement = connection
-            .prepare("SELECT session_id, node, username, common_name, real_ip, vpn_ip, duration, bytes_in, bytes_out FROM log WHERE active = 1")
+            .prepare("SELECT session_id, node, username, common_name, real_ip, vpn_ip, duration, bytes_in, bytes_out, active, auth FROM log WHERE active = 1")
             .unwrap();
 
         while let State::Row = statement.next().unwrap() {
@@ -112,7 +114,9 @@ fn main() {
                 &statement.read::<String>(2).unwrap()[..],
                 &statement.read::<String>(3).unwrap()[..],
                 &statement.read::<String>(4).unwrap()[..],
-                &statement.read::<String>(5).unwrap()[..]
+                &statement.read::<String>(5).unwrap()[..],
+                &statement.read::<String>(6).unwrap()[..],
+                &statement.read::<String>(7).unwrap()[..]
             ];
 
             duration.with_label_values(&label_values).set(statement.read::<f64>(5).unwrap());
