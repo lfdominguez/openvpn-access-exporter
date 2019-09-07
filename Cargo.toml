@@ -5,12 +5,13 @@ authors = ["Luis Felipe Domínguez Vega <ldominguezvega@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-env_logger = "0.6"
-log = "0.4.6"
-prometheus = "0.5"
-prometheus_exporter = "0.3"
+env_logger = "0.6.2"
+log = "0.4.8"
+clap = "2.33.0"
+prometheus = { git = "https://github.com/lfdominguez/rust-prometheus.git" }
 sqlite = "0.24.0"
-clap = "2.33"
+lazy_static = "1.4.0"
+hyper = "0.12.33"
 
 [profile.dev]
 opt-level = 0

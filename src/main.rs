@@ -1,10 +1,8 @@
 // Will create an exporter with a single metric that will randomize the value
 // of the metric everytime the exporter is called.
 
-extern crate prometheus;
-extern crate env_logger;
-extern crate clap;
-
+#[macro_use] extern crate prometheus;
+#[macro_use] extern crate lazy_static;
 #[macro_use] extern crate log;
 
 use env_logger::{
@@ -12,19 +10,13 @@ use env_logger::{
     Env
 };
 
-use prometheus::{
-    __register_gauge_vec,
-    opts,
-    register_gauge_vec,
-    register_counter
-};
-use prometheus_exporter::{
-    FinishedUpdate,
-    PrometheusExporter,
-};
 use clap::{App, Arg};
+use prometheus::{TextEncoder, Encoder};
+use hyper::{header::CONTENT_TYPE, rt::Future, service::service_fn_ok, Body, Response, Server};
 use std::net::SocketAddr;
 use sqlite::State;
+
+mod metrics;
 
 fn main() {
     let flags = App::new("openvpn-access-exporter")
@@ -56,7 +48,8 @@ fn main() {
         )
         .get_matches();
 
-    let ovpn_log = flags.value_of("file").unwrap();
+    //let ovpn_log = flags.value_of("file").unwrap();
+    //let ovpn_log = format!("{}", flags.value_of("file").unwrap())[..];
     let expose_port = flags.value_of("port").unwrap();
     let expose_host = flags.value_of("host").unwrap();
 
@@ -64,64 +57,66 @@ fn main() {
     // prometheus_exporter.
     Builder::from_env(Env::default().default_filter_or("info")).init();
 
-    info!("Using file: {}", ovpn_log);
+    info!("Using file: {}", flags.value_of("file").unwrap());
 
     // Parse address used to bind exporter to.
     let addr_raw = expose_host.to_owned() + ":" + expose_port;
     let addr: SocketAddr = addr_raw.parse().expect("can not parse listen addr");
+    
+    let new_service = move || {
+      let ovpn_log = flags.value_of("file").unwrap();
+      
+      let encoder = TextEncoder::new();
+      let connection = sqlite::open(&ovpn_log).unwrap();
 
-    // Start exporter.
-    let (request_receiver, finished_sender) = PrometheusExporter::run_and_notify(addr);
+      service_fn_ok(move |_request| {
 
-    let access_counter = register_counter!("access_counter", "Requests counter")
-        .expect("Can't create counter access_counter");
-
-    let label_vector = [
-        "session_id", 
-        "node",
-        "username",
-        "common_name",
-        "real_ip",
-        "vpn_ip"
-    ];
-
-    // Create metric
-    let bytes_in = register_gauge_vec!("openvpn_user_bytes_in", "Bytes in", &label_vector)
-        .expect("can not create gauge openvpn_user_bytes_in");
-    let bytes_out = register_gauge_vec!("openvpn_user_bytes_out", "Bytes out", &label_vector)
-        .expect("can not create gauge openvpn_user_bytes_out");
-    let duration = register_gauge_vec!("openvpn_user_duration", "Connection duration", &label_vector)
-        .expect("can not create gauge openvpn_user_duration");
-
-    let connection = sqlite::open(ovpn_log).unwrap();
-
-    loop {
-        // Will block until exporter receives http request.
-        request_receiver.recv().unwrap();
-
-        access_counter.inc();
+        metrics::ACCESS_COUNTER.inc();
 
         let mut statement = connection
-            .prepare("SELECT session_id, node, username, common_name, real_ip, vpn_ip, duration, bytes_in, bytes_out FROM log WHERE active = 1")
+            .prepare("SELECT session_id, node, username, common_name, real_ip, vpn_ip, duration, bytes_in, bytes_out, timestamp FROM log WHERE active = 1")
             .unwrap();
 
         while let State::Row = statement.next().unwrap() {
-            let label_values = [
-                &statement.read::<String>(0).unwrap()[..],
-                &statement.read::<String>(1).unwrap()[..],
-                &statement.read::<String>(2).unwrap()[..],
-                &statement.read::<String>(3).unwrap()[..],
-                &statement.read::<String>(4).unwrap()[..],
-                &statement.read::<String>(5).unwrap()[..]
-            ];
 
-            duration.with_label_values(&label_values).set(statement.read::<f64>(5).unwrap());
-            bytes_in.with_label_values(&label_values).set(statement.read::<f64>(6).unwrap());
-            bytes_out.with_label_values(&label_values).set(statement.read::<f64>(7).unwrap());
-        }
+          let label_values = [
+            &statement.read::<String>(0).unwrap()[..],
+            &statement.read::<String>(1).unwrap()[..],
+            &statement.read::<String>(2).unwrap()[..],
+            &statement.read::<String>(3).unwrap()[..],
+            &statement.read::<String>(4).unwrap()[..],
+            &statement.read::<String>(5).unwrap()[..]
+          ];
+          
+          //duration.with_label_values(&label_values).set(2.0);
 
-        // Notify exporter that all metrics have been updated so the caller client can
-        // receive a response.
-        finished_sender.send(FinishedUpdate).unwrap();
-    }
+          metrics::DURATION.with_label_values(&label_values).set(statement.read::<f64>(6).unwrap());
+          metrics::BYTES_IN.with_label_values(&label_values).set(statement.read::<f64>(7).unwrap());
+          metrics::BYTES_OUT.with_label_values(&label_values).set(statement.read::<f64>(8).unwrap());
+
+          let timestamp_ms = statement.read::<i64>(9).unwrap() * 1000;
+
+          metrics::DURATION.with_label_values(&label_values).set_timestamp_ms(timestamp_ms);
+          metrics::BYTES_IN.with_label_values(&label_values).set_timestamp_ms(timestamp_ms);
+          metrics::BYTES_OUT.with_label_values(&label_values).set_timestamp_ms(timestamp_ms);
+        }  
+
+        // Gather the metrics.
+        let mut buffer = vec![];
+        let metric_families = prometheus::gather();
+        encoder.encode(&metric_families, &mut buffer).unwrap();
+        
+        Response::builder()
+          .status(200)
+          .header(CONTENT_TYPE, encoder.format_type())
+          .body(Body::from(buffer))
+          .unwrap()
+      })
+    };
+    
+    let server = Server::bind(&addr)
+      .serve(new_service)
+      .map_err(|e| eprintln!("Server error: {}", e));
+
+    hyper::rt::run(server);
 }
